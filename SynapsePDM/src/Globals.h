@@ -375,7 +375,10 @@ struct __attribute__((packed)) AnalogueInputs
 
 /// @brief Channel digital input pins (defaults). Exocet build: original PE8-15 DI pins
 /// are repurposed as output drives; DI moves to former spare pins, routed to a header.
-const uint8_t DIchannelInputPins[NUM_DI_CHANNELS] = {PA8, PC13, PD10, PD11, PD12, PD15, PE6, PG7};
+// NOTE: PD12 is NOT usable here — the Synapse PCB hard-parallels PD12 with PD13 on
+// SIM_PWR_EN (firmware drives PD13, PD12 held high-Z). DI5 uses PG13 instead (freed
+// by the analogue pull-network removal, no PCB rework).
+const uint8_t DIchannelInputPins[NUM_DI_CHANNELS] = {PA8, PC13, PD10, PD11, PG13, PD15, PE6, PG7};
 
 /// @brief Channel analogue input pins (defaults)
 const uint8_t ANAchannelInputPins[NUM_ANA_CHANNELS] = {PF3, PF4, PF5, PF6, PF7, PF8, PF9, PF10};
