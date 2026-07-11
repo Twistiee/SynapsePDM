@@ -50,6 +50,11 @@ static uint8_t prevBars = 0;
 
 bool invalidateDisplay = false;
 
+// The 320x240 status screen has a fixed 7x2 grid of channel tiles. With more than
+// 14 hardware channels, only the first 14 are shown here — full channel status is
+// available over CAN and in Cortex.
+#define DISPLAY_CHANNEL_TILES 14
+
 const int lights[14][4] = {
     {23, 129, 44, 90},
     {68, 129, 44, 90},
@@ -210,7 +215,7 @@ void DrawBackground()
 
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
 
-  for (int i = 0; i < NUM_CHANNELS; i++)
+  for (int i = 0; i < DISPLAY_CHANNEL_TILES; i++)
   {
     tft.setCursor(textCoordinates[i][0], textCoordinates[i][1]);
     tft.print(i + 1);
@@ -248,13 +253,18 @@ void UpdateDisplay()
 
   if (invalidateDisplay)
   {
+    // Reset change-tracking state for every channel, but only draw the tiles
+    // that exist on the fixed 7x2 grid.
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
       bool effectiveEnabled = IsChannelEffectivelyEnabled(i);
       prevEnabled[i] = !effectiveEnabled;
       prevErrorFlags[i] = -1;
       prevCurrentValues[i] = -1.0F;
+    }
 
+    for (int i = 0; i < DISPLAY_CHANNEL_TILES; i++)
+    {
       tft.drawLine(0, 58, SCREENWIDTH, 58, TFT_DARKGREY);
       tft.drawLine(0, 148, SCREENWIDTH, 148, TFT_DARKGREY);
       tft.drawLine(0, 238, SCREENWIDTH, 238, TFT_DARKGREY);
@@ -325,7 +335,7 @@ void UpdateDisplay()
     prevHour = rtc.getHours();
     prevMin = rtc.getMinutes();
   }
-  for (int i = 0; i < NUM_CHANNELS; i++)
+  for (int i = 0; i < DISPLAY_CHANNEL_TILES; i++)
   {
     bool effectiveEnabled = IsChannelEffectivelyEnabled(i);
     int effectiveErrorFlags = outputsInhibited ? 0 : ChannelRuntime[i].ErrorFlags;

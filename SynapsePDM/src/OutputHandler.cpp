@@ -40,7 +40,10 @@ uint32_t pwmBufferG[100] = {0};
 uint32_t pwmBufferF[100] = {0};
 
 // Independent duty cycle tracking
-uint8_t dutyCycles[14] = {0};
+uint8_t dutyCycles[NUM_CHANNELS] = {0};
+
+// GPIOE output pins (outputs 15 to 22, digital on/off only — no DMA PWM stream)
+const uint16_t GPIOE_ALL_OUTPUT_PINS = GPIO_PIN_15 | GPIO_PIN_14 | GPIO_PIN_13 | GPIO_PIN_12 | GPIO_PIN_11 | GPIO_PIN_10 | GPIO_PIN_9 | GPIO_PIN_8;
 
 // Timer and DMA handles
 TIM_HandleTypeDef htim8;
@@ -83,6 +86,22 @@ static bool pwmCurrentFilterPrimed[NUM_CHANNELS] = {false};
 static uint8_t digitalTrySampleCount[NUM_CHANNELS] = {0};
 static float digitalTryCurrentSum[NUM_CHANNELS] = {0.0f};
 static bool outputsInhibited = false;
+
+/// @brief Route a dual-channel chip's shared IS pin to this channel before sampling.
+/// No-op for single-channel chips (DselPin == PIN_UNASSIGNED).
+static void SelectChannelSense(uint8_t channelIndex)
+{
+  if (channelIndex >= NUM_CHANNELS)
+  {
+    return;
+  }
+
+  if (Channels[channelIndex].DselPin != PIN_UNASSIGNED)
+  {
+    digitalWrite(Channels[channelIndex].DselPin, Channels[channelIndex].DselState ? HIGH : LOW);
+    delayMicroseconds(DSEL_SETTLE_MICROS);
+  }
+}
 
 bool IsChannelThermallyShed(uint8_t channelIndex)
 {
@@ -207,6 +226,20 @@ void InitialiseOutputs()
   configureDMA();
   configureTimer();
 
+  // DSEL select lines for dual-channel chips
+  for (int i = 0; i < NUM_CHANNELS; i++)
+  {
+    if (channelDselPins[i] != PIN_UNASSIGNED)
+    {
+      pinMode(channelDselPins[i], OUTPUT);
+      digitalWrite(channelDselPins[i], LOW);
+    }
+  }
+
+  // Shared diagnostics enable — HIGH in run, dropped LOW by SleepOutputs()
+  pinMode(DEN_SHARED_PIN, OUTPUT);
+  digitalWrite(DEN_SHARED_PIN, HIGH);
+
   for (int i = 0; i < NUM_CHANNELS; i++)
   {
     updatePWMDutyCycle(i, 0);
@@ -231,6 +264,10 @@ void SleepOutputs()
   // can remain physically high when we drop into sleep.
   HAL_GPIO_WritePin(GPIOG, GPIOG_ALL_PINS, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(GPIOF, GPIOF_ALL_PINS, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIOE_ALL_OUTPUT_PINS, GPIO_PIN_RESET);
+
+  // Disable PROFET diagnostics in sleep to remove the IS-path quiescent draw
+  digitalWrite(DEN_SHARED_PIN, LOW);
 
   __HAL_RCC_GPIOB_CLK_SLEEP_DISABLE();
   __HAL_RCC_GPIOC_CLK_SLEEP_DISABLE();
@@ -249,6 +286,16 @@ void SleepOutputs()
 
 void setupGPIO()
 {
+  __HAL_RCC_GPIOE_CLK_ENABLE();
+
+  GPIO_InitTypeDef GPIOE_InitStruct = {0};
+  GPIOE_InitStruct.Pin = GPIOE_ALL_OUTPUT_PINS;
+  GPIOE_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIOE_InitStruct.Pull = GPIO_NOPULL;
+  GPIOE_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOE, &GPIOE_InitStruct);
+  HAL_GPIO_WritePin(GPIOE, GPIOE_ALL_OUTPUT_PINS, GPIO_PIN_RESET);
+
   __HAL_RCC_GPIOG_CLK_ENABLE();
 
   GPIO_InitTypeDef GPIOG_InitStruct = {0};
@@ -341,10 +388,19 @@ void configureTimer()
 // Setup PWM buffer
 void updatePWMDutyCycle(uint8_t pinIndex, uint8_t dutyCycle)
 {
-  if (pinIndex >= NUM_PINS_G + NUM_PINS_F)
+  if (pinIndex >= NUM_CHANNELS)
     return; // Ensure valid index
 
   dutyCycles[pinIndex] = dutyCycle; // Store the new duty cycle
+
+  if (pinIndex >= NUM_PINS_G + NUM_PINS_F)
+  {
+    // GPIOE channels have no DMA PWM stream: plain digital on/off,
+    // treating any duty >= 50% as on (PWM channel types shouldn't be
+    // configured on these channels).
+    digitalWrite(channelOutputPins[pinIndex], (dutyCycle >= 50) ? HIGH : LOW);
+    return;
+  }
 
   for (int i = 0; i < 100; i++)
   {
@@ -450,6 +506,7 @@ void UpdateOutputs()
         bool criticalFault = false;
         int sum = 0;
         uint8_t total = 0;
+        SelectChannelSense(i);
         for (int j = 0; j < currentSenseSamples; j++)
         {
           sum += analogRead(Channels[i].CurrentSensePin);
@@ -595,6 +652,7 @@ void UpdateOutputs()
         softStopStartDuty[i] = 0;
         int sum = 0;
         uint8_t total = 0;
+        SelectChannelSense(i);
         for (int j = 0; j < currentSenseSamples; j++)
         {
           sum += analogRead(Channels[i].CurrentSensePin);

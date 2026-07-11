@@ -42,7 +42,12 @@
 #define BUILD_DATE __DATE__ " " __TIME__
 
 // Number of hardware output channels
-#define NUM_CHANNELS 14
+// Exocet 22-channel tiered build: 4x BTS7002-1EPP (21A) + 4x BTS7008-2EPZ (2x7.5A)
+// + 5x BTS7050-2EPL (2x3A). Dual-channel chips share one IS pin selected by DSEL.
+#define NUM_CHANNELS 22
+
+// Number of physical output driver chips
+#define NUM_OUTPUT_CHIPS 13
 
 // Number of digital input channels
 #define NUM_DI_CHANNELS 8
@@ -73,7 +78,8 @@
 #define CPU_TICK_MICROS (1E6 / F_CPU)
 
 // Maximum per-channel current supported by hardware. No channel can exceed this limit.
-#define CURRENT_MAX 17.0
+// 22.0 covers the 21A BTS7002-1EPP high tier.
+#define CURRENT_MAX 22.0
 
 // Channel inrush delay (milliseconds)
 #define INRUSH_DELAY 500
@@ -357,23 +363,50 @@ struct __attribute__((packed)) AnalogueInputs
   float NTCNominalResistance;   // NTC nominal resistance at 25C (ohms)
 };
 
-/// @brief Channel digital input pins (defaults)
-const uint8_t DIchannelInputPins[NUM_DI_CHANNELS] = {PE15, PE14, PE13, PE12, PE11, PE10, PE9, PE8};
+// Sentinel for "no pin assigned". Guarded at every use site.
+#define PIN_UNASSIGNED 0xFE
+
+// Shared diagnostics-enable (DEN) pin gating all PROFET chips. Driven HIGH in run,
+// can be dropped LOW in sleep to kill diagnostic quiescent draw.
+#define DEN_SHARED_PIN PD6
+
+// Settle time after switching a dual-channel chip's DSEL before sampling IS
+#define DSEL_SETTLE_MICROS 100
+
+/// @brief Channel digital input pins (defaults). Exocet build: original PE8-15 DI pins
+/// are repurposed as output drives; DI moves to former spare pins, routed to a header.
+const uint8_t DIchannelInputPins[NUM_DI_CHANNELS] = {PA8, PC13, PD10, PD11, PD12, PD15, PE6, PG7};
 
 /// @brief Channel analogue input pins (defaults)
 const uint8_t ANAchannelInputPins[NUM_ANA_CHANNELS] = {PF3, PF4, PF5, PF6, PF7, PF8, PF9, PF10};
 
-// @brief Channel analogue input pull-up pins (defaults)
-const uint8_t ANAchannelInputPullUps[NUM_ANA_CHANNELS] = {PD3, PD5, PD7, PG12, PG15, PB4, PB9, PE1};
+// @brief Channel analogue input pull-up pins. Exocet build: MCU-switched pulls removed —
+// the GPIOs were reassigned to DSEL/DEN duty; the PCB provides fixed DNP pull resistors.
+const uint8_t ANAchannelInputPullUps[NUM_ANA_CHANNELS] = {PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED};
 
-/// @brief Channel analogue input pull-down pins (defaults)
-const uint8_t ANAchannelInputPullDowns[NUM_ANA_CHANNELS] = {PD4, PD6, PG11, PG13, PG14, PB3, PB5, PE0};
+/// @brief Channel analogue input pull-down pins (see pull-up note above)
+const uint8_t ANAchannelInputPullDowns[NUM_ANA_CHANNELS] = {PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED};
 
-/// @brief Channel digital output pins
-const uint8_t channelOutputPins[NUM_CHANNELS] = {PG10, PG9, PG6, PG5, PG4, PG3, PG2, PF15, PF14, PF13, PF12, PF2, PF1, PF0};
+/// @brief Channel digital output pins.
+/// idx 0-3   HIGH tier, 4x BTS7002-1EPP           (port G/F pins keep DMA PWM support)
+/// idx 4-11  MED tier,  4x BTS7008-2EPZ pairs     (chip pairs: {4,5} {6,7} {8,9} {10,11})
+/// idx 12-21 LOW tier,  5x BTS7050-2EPL pairs     (chip pairs: {12,13} {14,15} {16,17} {18,19} {20,21})
+/// idx 14-21 sit on GPIOE: digital on/off only, no DMA PWM (see updatePWMDutyCycle fallback).
+const uint8_t channelOutputPins[NUM_CHANNELS] = {PG10, PG9, PG6, PG5, PG4, PG3, PG2, PF15, PF14, PF13, PF12, PF2, PF1, PF0, PE15, PE14, PE13, PE12, PE11, PE10, PE9, PE8};
 
-/// @brief Channel analog current sense pins
-const uint8_t channelCurrentSensePins[NUM_CHANNELS] = {PA0, PA1, PA2, PA3, PA4, PA5, PA6, PB1, PB0, PA7, PC3, PC2, PC1, PC0};
+/// @brief Channel analog current sense pins. Dual-channel chips share one IS pin
+/// (both channels of a pair carry the same sense pin; DSEL picks which channel is mirrored).
+/// PC0 is deliberately unused — spare ADC routed to a test point on the PCB.
+const uint8_t channelCurrentSensePins[NUM_CHANNELS] = {PA0, PA1, PA2, PA3, PA4, PA4, PA5, PA5, PA6, PA6, PB1, PB1, PB0, PB0, PA7, PA7, PC3, PC3, PC2, PC2, PC1, PC1};
+
+/// @brief Channel DSEL (IS channel select) pins. PIN_UNASSIGNED for single-channel chips.
+const uint8_t channelDselPins[NUM_CHANNELS] = {PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PIN_UNASSIGNED, PD3, PD3, PD5, PD5, PD7, PD7, PG12, PG12, PG15, PG15, PB4, PB4, PB9, PB9, PE1, PE1, PD4, PD4};
+
+/// @brief DSEL level selecting this channel's IS mirror (0 = ch0/DSEL low, 1 = ch1/DSEL high)
+const uint8_t channelDselStates[NUM_CHANNELS] = {0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
+
+/// @brief Default per-channel kILIS by tier (BTS7002-1EPP 22900, BTS7008-2EPZ 9500, BTS7050-2EPL 2030)
+const float channelDefaultKILIS[NUM_CHANNELS] = {22900, 22900, 22900, 22900, 9500, 9500, 9500, 9500, 9500, 9500, 9500, 9500, 2030, 2030, 2030, 2030, 2030, 2030, 2030, 2030, 2030, 2030};
 
 /// @brief CAN enabled channel enabled flags
 extern bool CANChannelEnableFlags[NUM_CHANNELS];

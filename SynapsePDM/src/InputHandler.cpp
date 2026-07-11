@@ -502,11 +502,17 @@ void InitialiseInputs()
         AnalogueIns[i].PullUpPin = ANAchannelInputPullUps[i];
         SanitizeAnalogueInputConfig(AnalogueIns[i]);
 
-        pinMode(AnalogueIns[i].PullDownPin, OUTPUT);
-        pinMode(AnalogueIns[i].PullUpPin, OUTPUT);
-
-        digitalWrite(AnalogueIns[i].PullDownPin, AnalogueIns[i].PullDownEnable ? HIGH : LOW);
-        digitalWrite(AnalogueIns[i].PullUpPin, AnalogueIns[i].PullUpEnable ? HIGH : LOW);
+        // Exocet build: pull GPIOs are PIN_UNASSIGNED (fixed DNP pull resistors on the PCB instead)
+        if (AnalogueIns[i].PullDownPin != PIN_UNASSIGNED)
+        {
+            pinMode(AnalogueIns[i].PullDownPin, OUTPUT);
+            digitalWrite(AnalogueIns[i].PullDownPin, AnalogueIns[i].PullDownEnable ? HIGH : LOW);
+        }
+        if (AnalogueIns[i].PullUpPin != PIN_UNASSIGNED)
+        {
+            pinMode(AnalogueIns[i].PullUpPin, OUTPUT);
+            digitalWrite(AnalogueIns[i].PullUpPin, AnalogueIns[i].PullUpEnable ? HIGH : LOW);
+        }
 
         // Analogue-capable inputs are always sampled through the ADC path, even when used logically as digital.
         pinMode(AnalogueIns[i].InputPin, INPUT_ANALOG);
@@ -665,8 +671,14 @@ void HandleInputs()
     for (int i = 0; i < NUM_ANA_CHANNELS; i++)
     {
         SanitizeAnalogueInputConfig(AnalogueIns[i]);
-        digitalWrite(AnalogueIns[i].PullDownPin, AnalogueIns[i].PullDownEnable);
-        digitalWrite(AnalogueIns[i].PullUpPin, AnalogueIns[i].PullUpEnable);
+        if (AnalogueIns[i].PullDownPin != PIN_UNASSIGNED)
+        {
+            digitalWrite(AnalogueIns[i].PullDownPin, AnalogueIns[i].PullDownEnable);
+        }
+        if (AnalogueIns[i].PullUpPin != PIN_UNASSIGNED)
+        {
+            digitalWrite(AnalogueIns[i].PullUpPin, AnalogueIns[i].PullUpEnable);
+        }
     }
 }
 
@@ -674,7 +686,13 @@ void PullResistorSleep()
 {
     for (int i = 0; i < NUM_ANA_CHANNELS; i++)
     {
-        pinMode(AnalogueIns[i].PullDownPin, INPUT_ANALOG);
-        pinMode(AnalogueIns[i].PullUpPin, INPUT_ANALOG);
+        if (AnalogueIns[i].PullDownPin != PIN_UNASSIGNED)
+        {
+            pinMode(AnalogueIns[i].PullDownPin, INPUT_ANALOG);
+        }
+        if (AnalogueIns[i].PullUpPin != PIN_UNASSIGNED)
+        {
+            pinMode(AnalogueIns[i].PullUpPin, INPUT_ANALOG);
+        }
     }
 }

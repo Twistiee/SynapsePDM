@@ -133,7 +133,9 @@ struct __attribute__((packed)) ChannelConfig
   uint32_t IntermittentOnTime;  // Intermittent on time in milliseconds
   uint32_t IntermittentOffTime; // Intermittent off time in milliseconds
   float CurrentSenseKILIS;      // Per-channel current sense ratio calibration value
-  uint8_t Reserved[14];         // Reserved for future use
+  uint8_t DselPin;              // DSEL pin for dual-channel chips (PIN_UNASSIGNED if single-channel)
+  uint8_t DselState;            // DSEL level that routes this channel's current to the shared IS pin
+  uint8_t Reserved[12];         // Reserved for future use
 };
 
 /// @brief Channel config runtime structure

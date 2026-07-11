@@ -114,7 +114,9 @@ void InitialiseChannelData()
     Channels[i].InrushCurrentThreshold = 1.0;
     Channels[i].IntermittentOnTime = 1000;
     Channels[i].IntermittentOffTime = 1000;
-    Channels[i].CurrentSenseKILIS = DEFAULT_CHANNEL_CURRENT_SENSE_KILIS;
+    Channels[i].CurrentSenseKILIS = channelDefaultKILIS[i];
+    Channels[i].DselPin = channelDselPins[i];
+    Channels[i].DselState = channelDselStates[i];
     ChannelRuntime[i].Override = false;
     ChannelRuntime[i].Enabled = false;
   } 
