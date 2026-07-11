@@ -37,7 +37,7 @@ BU_: ECU PDM
 
 
 BO_ 1792 ChannelStatusRequest: 8 ECU
- SG_ ChannelNumber : 7|8@0+ (1,0) [1|14] "" Vector__XXX
+ SG_ ChannelNumber : 7|8@0+ (1,0) [1|22] "" Vector__XXX
 
 BO_ 1793 ChannelStatusResponse: 8 PDM
  SG_ FrameIndex M : 7|8@0+ (1,0) [0|2] "" Vector__XXX
@@ -45,8 +45,8 @@ BO_ 1793 ChannelStatusResponse: 8 PDM
  SG_ ChannelCurrent m0 : 23|8@0+ (0.1,0) [0|25.5] "Amps" Vector__XXX
  SG_ Enabled m0 : 31|8@0+ (1,0) [0|1] "" Vector__XXX
  SG_ ChannelName m0 : 39|16@0+ (1,0) [0|32767] "PackedLetters" Vector__XXX
- SG_ CurrentThresholdLow m0 : 55|8@0+ (0.1,0) [0|17] "Amps" Vector__XXX
- SG_ CurrentThresholdHigh m0 : 63|8@0+ (0.1,0) [0|17] "Amps" Vector__XXX
+ SG_ CurrentThresholdLow m0 : 55|8@0+ (0.1,0) [0|22] "Amps" Vector__XXX
+ SG_ CurrentThresholdHigh m0 : 63|8@0+ (0.1,0) [0|22] "Amps" Vector__XXX
  SG_ RetryCount m1 : 15|8@0+ (1,0) [0|255] "" Vector__XXX
  SG_ InrushDelay m1 : 23|32@0+ (1,0) [0|2000] "Milliseconds" Vector__XXX
  SG_ ActiveHigh m1 : 55|8@0+ (1,0) [0|1] "" Vector__XXX
@@ -99,39 +99,39 @@ BO_ 1840 SystemConfig: 8 ECU
  SG_ WriteBitMask : 63|8@0+ (1,0) [0|127] "" Vector__XXX
 
 BO_ 1856 ChannelConfigF0: 8 ECU
- SG_ ChannelNumber : 7|8@0+ (1,0) [1|14] "" Vector__XXX
+ SG_ ChannelNumber : 7|8@0+ (1,0) [1|22] "" Vector__XXX
  SG_ ControlValue : 15|8@0+ (1,0) [0|255] "" Vector__XXX
 
 BO_ 1857 ChannelConfigF1: 8 ECU
- SG_ ChannelNumber : 7|8@0+ (1,0) [1|14] "" Vector__XXX
+ SG_ ChannelNumber : 7|8@0+ (1,0) [1|22] "" Vector__XXX
  SG_ ChannelType : 15|8@0+ (1,0) [0|6] "" Vector__XXX
  SG_ ChannelName : 23|16@0+ (1,0) [0|32767] "PackedLetters" Vector__XXX
- SG_ CurrentThresholdLow : 39|8@0+ (0.1,0) [0|17] "Amps" Vector__XXX
- SG_ CurrentThresholdHigh : 47|8@0+ (0.1,0) [0|17] "Amps" Vector__XXX
+ SG_ CurrentThresholdLow : 39|8@0+ (0.1,0) [0|22] "Amps" Vector__XXX
+ SG_ CurrentThresholdHigh : 47|8@0+ (0.1,0) [0|22] "Amps" Vector__XXX
  SG_ RetryCount : 55|8@0+ (1,0) [0|255] "" Vector__XXX
  SG_ WriteBitMask : 63|8@0+ (1,0) [0|127] "" Vector__XXX
 
 BO_ 1858 ChannelConfigF2: 8 ECU
- SG_ ChannelNumber : 7|8@0+ (1,0) [1|14] "" Vector__XXX
+ SG_ ChannelNumber : 7|8@0+ (1,0) [1|22] "" Vector__XXX
  SG_ InrushDelay : 15|32@0+ (1,0) [0|2000] "Milliseconds" Vector__XXX
  SG_ ActiveHigh : 47|8@0+ (1,0) [0|1] "" Vector__XXX
  SG_ RunOn : 55|8@0+ (1,0) [0|1] "" Vector__XXX
  SG_ WriteBitMask : 63|8@0+ (1,0) [0|15] "" Vector__XXX
 
 BO_ 1859 ChannelConfigF3: 8 ECU
- SG_ ChannelNumber : 7|8@0+ (1,0) [1|14] "" Vector__XXX
+ SG_ ChannelNumber : 7|8@0+ (1,0) [1|22] "" Vector__XXX
  SG_ RunOnTime : 15|32@0+ (1,0) [0|3600000] "Milliseconds" Vector__XXX
  SG_ SoftStart : 47|8@0+ (1,0) [0|1] "" Vector__XXX
  SG_ SoftStartTime : 55|8@0+ (1,0) [0|5] "Seconds" Vector__XXX
  SG_ WriteBitMask : 63|8@0+ (1,0) [0|15] "" Vector__XXX
 
 BO_ 1860 ChannelConfigF4: 8 ECU
- SG_ ChannelNumber : 7|8@0+ (1,0) [1|14] "" Vector__XXX
+ SG_ ChannelNumber : 7|8@0+ (1,0) [1|22] "" Vector__XXX
  SG_ InrushCurrentThreshold : 15|8@0+ (1,0) [0|50] "Amps" Vector__XXX
  SG_ WriteBitMask : 63|8@0+ (1,0) [0|1] "" Vector__XXX
 
 
-CM_ BO_ 1792 "Request a single channel status block. Set ChannelNumber to 1..14.";
+CM_ BO_ 1792 "Request a single channel status block. Set ChannelNumber to 1..22.";
 CM_ BO_ 1793 "Multiplexed 3-frame response on ChannelDataCANID + 1. FrameIndex selects the payload layout.";
 CM_ SG_ 1793 FrameIndex "0 = status/core config, 1 = timing/config, 2 = run-on/inrush config.";
 CM_ SG_ 1793 ChannelName "Three uppercase letters packed into 16 bits as ((c0-'A') << 10) | ((c1-'A') << 5) | (c2-'A').";
